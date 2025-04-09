@@ -166,7 +166,7 @@ public class UserController {
     @PostMapping("handleForm")
     public String handleForm(User user){
         userService.addUser(user);
-        return "success";
+        return "Successfully done.";
 
     }
 
