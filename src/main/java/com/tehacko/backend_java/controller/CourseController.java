@@ -55,6 +55,11 @@ public class CourseController {
             @RequestParam("image") MultipartFile image) {
 
         try {
+            System.out.println("Title: " + title);
+            System.out.println("Summary: " + summary);
+            System.out.println("Lecturer: " + lecturer);
+            System.out.println("Image: " + (image != null ? image.getOriginalFilename() : "No image uploaded"));
+
             Course course = new Course();
             course.setDate(LocalDate.now()); // Set the current date
             course.setTitle(title);
@@ -63,10 +68,15 @@ public class CourseController {
             course.setLecturer(lecturer);
             course.setLecturerEmail(lecturerEmail);
 
+            System.out.println("Saving course: " + course);
             Course savedCourse = courseService.saveCourse(course, image);
             return ResponseEntity.ok(savedCourse);
         } catch (IOException e) {
-            return ResponseEntity.internalServerError().build();
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(null);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
