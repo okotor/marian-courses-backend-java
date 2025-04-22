@@ -18,8 +18,12 @@ import java.util.List;
 @CrossOrigin(origins = {"http://localhost:3000", "https://marian-courses-next-js-frontend.vercel.app"}, allowCredentials = "true") // Allow requests from React
 public class CourseController {
 
+    private final CourseService courseService;
+
     @Autowired
-    private CourseService courseService;
+    public CourseController(CourseService courseService) {
+        this.courseService = courseService;
+    }
 
     @GetMapping("/{slug}")
     public ResponseEntity<Course> getCourseBySlug(@PathVariable String slug) {
