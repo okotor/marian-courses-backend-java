@@ -116,4 +116,7 @@ public class CourseService {
         return courseRepo.findByTitleContainingOrCourseDescriptionContainingOrSummaryContainingOrLecturerContaining(keyword, keyword, keyword, keyword);
     }
 
+    public List<Course> getAllCourses() {
+        return courseRepo.findAll(); // Fetch all courses from the database
+    }
 }

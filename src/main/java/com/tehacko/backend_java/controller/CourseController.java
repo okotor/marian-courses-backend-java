@@ -25,6 +25,12 @@ public class CourseController {
         this.courseService = courseService;
     }
 
+    @GetMapping
+    public ResponseEntity<?> getCourses() {
+        System.out.println("Received GET /courses request");
+        return ResponseEntity.ok(courseService.getAllCourses());
+    }
+
     @GetMapping("/{slug}")
     public ResponseEntity<Course> getCourseBySlug(@PathVariable String slug) {
         Course course = courseService.findBySlug(slug);
