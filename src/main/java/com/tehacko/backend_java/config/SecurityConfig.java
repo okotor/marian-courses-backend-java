@@ -3,6 +3,7 @@ package com.tehacko.backend_java.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -40,10 +41,8 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())  // Disable CSRF
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/register", "/login", "/google-login", "/courses/**", "/api/refresh-token")
-                        .permitAll()
-                        .requestMatchers("/courses/**")
-                        .authenticated() // Require authentication for /courses/**
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow preflight requests
+                        .requestMatchers("/register", "/login", "/google-login", "/courses/**", "/api/refresh-token").permitAll()
                         .anyRequest().authenticated()) // Allow all requests
                 .httpBasic(Customizer.withDefaults())
                 .sessionManagement(session ->

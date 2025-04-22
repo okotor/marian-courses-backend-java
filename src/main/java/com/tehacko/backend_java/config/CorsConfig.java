@@ -15,7 +15,7 @@ public class CorsConfig {
         config.addAllowedOrigin("http://localhost:3000"); // Local development
         config.addAllowedOrigin("https://marian-courses-next-js-frontend.vercel.app"); // Deployed frontend
         config.addAllowedHeader("*"); // Allow all headers
-        config.addAllowedMethod("*"); // Allow all HTTP methods (GET, POST, etc.)
+        config.addAllowedMethod("*"); // Allow all HTTP methods (GET, POST, OPTIONS, etc.)
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
     }
