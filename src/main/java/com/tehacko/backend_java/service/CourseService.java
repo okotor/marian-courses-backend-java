@@ -96,6 +96,8 @@ public class CourseService {
             } catch (IOException e) {
                 throw new IOException("Failed to upload the image to S3", e);
             }
+        } else {
+            throw new IllegalArgumentException("Obrázek je požádován. Kurz nebyl uložen.");
         }
 //        // Handle image processing
 //        String extension = imageFile.getOriginalFilename().substring(imageFile.getOriginalFilename().lastIndexOf("."));

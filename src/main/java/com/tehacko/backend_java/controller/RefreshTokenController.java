@@ -10,7 +10,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "http://localhost:3000") // Allow React
+//@CrossOrigin(origins = "http://localhost:3000") // Allow React
 public class RefreshTokenController {
 
     @Autowired

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import java.util.List;
 
 @Repository
-@CrossOrigin(origins = "http://localhost:3000") // Allow React
+//@CrossOrigin(origins = "http://localhost:3000") // Allow React
 public interface CourseRepo extends JpaRepository<Course, Integer> {
 
     Course findBySlug(String slug);

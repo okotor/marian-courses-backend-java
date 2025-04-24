@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import java.util.List;
 
 @Repository
-@CrossOrigin(origins = "http://localhost:3000") // Allow React
+//@CrossOrigin(origins = "http://localhost:3000") // Allow React
 public interface UserRepo extends JpaRepository<User, Integer> {
     User findByEmail(String email);
     List<User> findByEmailContainingOrPassword(String email, String password);

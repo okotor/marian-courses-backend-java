@@ -63,6 +63,17 @@ public class UserService {
         userRepo.save(user);
     }
 
+    //ALTERNATIVELY:
+//    public User updateUser(UserRequest userRequest) {
+//        User user = userRepo.findByEmail(userRequest.getEmail());
+//        if (user != null) {
+//            user.setPassword(encoder.encode(userRequest.getPassword()));
+//            return userRepo.save(user);
+//        } else {
+//            return null;
+//        }
+//    }
+
     public void deleteUser(int uId) {
         try {
             userRepo.deleteById(uId);
