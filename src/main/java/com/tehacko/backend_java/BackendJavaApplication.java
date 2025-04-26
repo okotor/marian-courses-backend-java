@@ -7,11 +7,18 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class BackendJavaApplication {
     public static void main(String[] args) {
-        // Load .env file
-        Dotenv dotenv = Dotenv.configure().load();
+        try {
+            // Try to load .env if it exists (for local dev)
+            Dotenv dotenv = Dotenv.configure()
+                    .ignoreIfMissing() // ✅ Don't crash if .env is missing (e.g., on Render)
+                    .load();
 
-        // Set environment variables as system properties
-        dotenv.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
+            dotenv.entries().forEach(entry ->
+                    System.setProperty(entry.getKey(), entry.getValue())
+            );
+        } catch (Exception e) {
+            System.out.println("No .env file found or error reading it. Using system environment variables.");
+        }
 
         // Start Spring Boot application
         SpringApplication.run(BackendJavaApplication.class, args);
