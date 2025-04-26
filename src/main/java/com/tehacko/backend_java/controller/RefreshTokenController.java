@@ -18,11 +18,13 @@ public class RefreshTokenController {
 
     @PostMapping("/refresh-token")
     public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
+        System.out.println("Received POST /api/refresh-token request");
         String refreshToken = request.get("refreshToken");
         String newToken = jwtService.refreshToken(refreshToken);
         if (newToken == null) {
             return ResponseEntity.status(401).body("Invalid refresh token");
         }
+        System.out.println("Token refreshed successfully"); // log success
         return ResponseEntity.ok(Collections.singletonMap("token", newToken));
     }
 }
