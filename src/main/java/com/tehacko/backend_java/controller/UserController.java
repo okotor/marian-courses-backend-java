@@ -85,11 +85,13 @@ public class UserController {
 
     @PostMapping("/google-login")
     public ResponseEntity<Map<String, Object>> googleLogin(@RequestBody Map<String, String> request, HttpServletResponse response) {
+        System.out.println("Received POST /google-login request");
         String googleToken = request.get("token");
         try {
             User googleUser = userService.validateGoogleToken(googleToken);
             if (googleUser != null) {
                 // Check if the user already exists in the database
+                System.out.println("Google user validated: " + googleUser.getEmail());
                 User existingUser = userService.findByEmail(googleUser.getEmail());
                 if (existingUser != null) {
                     // User exists, log them in
@@ -131,12 +133,14 @@ public class UserController {
                     return ResponseEntity.ok(responseBody);
                 }
             } else {
+                System.out.println("Google login failed");
                 Map<String, Object> responseBody = new HashMap<>();
                 responseBody.put("success", false);
                 responseBody.put("message", "Google login failed");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseBody);
             }
         } catch (Exception e) {
+            System.out.println("Error during Google login: " + e.getMessage());
             Map<String, Object> responseBody = new HashMap<>();
             responseBody.put("success", false);
             responseBody.put("message", "An error occurred");
