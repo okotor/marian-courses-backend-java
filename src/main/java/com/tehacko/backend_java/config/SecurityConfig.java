@@ -19,6 +19,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.List;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -37,8 +39,8 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())  // Disable CSRF
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow preflight requests
-                        .requestMatchers("/register", "/login", "/google-login", "/courses/**", "/api/refresh-token").permitAll()
-                        .anyRequest().authenticated()) // Allow all requests
+                        .requestMatchers("/register", "/login", "/google-login", "/courses/**").permitAll()
+                        .anyRequest().authenticated())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Explicitly enable CORS
                 .httpBasic(Customizer.withDefaults())
                 .sessionManagement(session ->
@@ -53,10 +55,9 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.addAllowedOrigin("http://localhost:3000");
-        config.addAllowedOrigin("https://maria-courses-next-js-java-backend.vercel.app/");
-        config.addAllowedHeader("*");
-        config.addAllowedMethod("*");
+        config.setAllowedOrigins(List.of("http://localhost:3000", "https://maria-courses-next-js-java-backend.vercel.app")); // Must use setAllowedOrigins not addAllowedOrigin repeatedly
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedMethods(List.of("*"));
         source.registerCorsConfiguration("/**", config);
         return source;
     }

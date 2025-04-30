@@ -20,7 +20,7 @@ public class RefreshTokenController {
     public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
         System.out.println("Received POST /api/refresh-token request");
         String refreshToken = request.get("refreshToken");
-        String newToken = jwtService.refreshToken(refreshToken);
+        String newToken = jwtService.refreshAccessToken(refreshToken);
         if (newToken == null) {
             return ResponseEntity.status(401).body("Invalid refresh token");
         }

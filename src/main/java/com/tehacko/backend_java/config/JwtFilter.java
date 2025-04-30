@@ -4,6 +4,7 @@ import com.tehacko.backend_java.service.JwtService;
 import com.tehacko.backend_java.service.MyUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -27,25 +28,59 @@ public class JwtFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
-        String token = null;
-        String userName = null;
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
 
-        if(authHeader != null && authHeader.startsWith("Bearer ")){
+        String token = null;
+        String username = null;
+
+        // Log start
+        System.out.println("[JwtFilter] Checking authentication for request: " + request.getRequestURI());
+
+
+        // 1. Check Authorization header
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
-            userName = jwtService.getUsernameFromToken(token);
+            System.out.println("[JwtFilter] Token found in Authorization header.");
         }
 
-        if(userName != null && SecurityContextHolder.getContext().getAuthentication()==null){
-            UserDetails userDetails = myUserDetailsService.loadUserByUsername(userName);
-
-            if(jwtService.validateToken(token, userDetails)){
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+        // 2. If not found in header, check cookies
+        if (token == null && request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("jwtToken".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                    System.out.println("[JwtFilter] Token found in cookie.");
+                    break;
+                }
             }
+        }
+
+        // 3. Validate token and set authentication
+        if (token != null) {
+            try {
+                username = jwtService.extractUsername(token);
+                System.out.println("[JwtFilter] Token belongs to: " + username);
+            } catch (Exception e) {
+                System.out.println("[JwtFilter] Invalid token: " + e.getMessage());
+            }
+
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = myUserDetailsService.loadUserByUsername(username);
+
+                if (jwtService.validateToken(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    System.out.println("[JwtFilter] Authentication successful for user: " + username);
+                } else {
+                    System.out.println("[JwtFilter] Token validation failed for user: " + username);
+                }
+            }
+        } else {
+            System.out.println("[JwtFilter] No valid JWT token found.");
         }
         filterChain.doFilter(request, response);
     }

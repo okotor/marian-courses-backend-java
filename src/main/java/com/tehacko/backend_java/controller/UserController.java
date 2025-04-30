@@ -1,5 +1,7 @@
 package com.tehacko.backend_java.controller;
+
 import com.tehacko.backend_java.model.User;
+import com.tehacko.backend_java.security.TokenUtil;
 import com.tehacko.backend_java.service.JwtService;
 import com.tehacko.backend_java.service.UserService;
 import jakarta.servlet.http.Cookie;
@@ -29,6 +31,9 @@ public class UserController {
 
     @Autowired
     AuthenticationManager authenticationManager;
+
+    @Autowired
+    private TokenUtil tokenUtil;
 
     @GetMapping({"/", "home"})
     public String home() {
@@ -63,15 +68,13 @@ public class UserController {
             }
 
             User authenticatedUser = userService.findByEmail(user.getEmail());
-            String token = jwtService.generateToken(authenticatedUser.getEmail());
 
-            // Set JWT token in HTTP-only cookie
-            Cookie cookie = new Cookie("jwtToken", token);
-            cookie.setHttpOnly(true);
-            cookie.setSecure(true); // Use secure cookies in production
-            cookie.setPath("/");
-            cookie.setMaxAge(7 * 24 * 60 * 60); // Set cookie expiry to 7 days
-            response.addCookie(cookie);
+            // Generate both tokens
+            String accessToken = jwtService.generateAccessToken(authenticatedUser.getEmail());
+            String refreshToken = jwtService.generateRefreshToken(authenticatedUser.getEmail());
+
+            // Use TokenUtil to set tokens in cookies
+            tokenUtil.setTokensInCookies(accessToken, refreshToken, response);
 
             responseBody.put("success", true);
             responseBody.put("user", Map.of("email", authenticatedUser.getEmail(), "is_admin", authenticatedUser.isAdmin()));
@@ -86,6 +89,7 @@ public class UserController {
     @PostMapping("/google-login")
     public ResponseEntity<Map<String, Object>> googleLogin(@RequestBody Map<String, String> request, HttpServletResponse response) {
         System.out.println("Received POST /google-login request");
+        Map<String, Object> responseBody = new HashMap<>();
         String googleToken = request.get("token");
         try {
             User googleUser = userService.validateGoogleToken(googleToken);
@@ -95,71 +99,96 @@ public class UserController {
                 User existingUser = userService.findByEmail(googleUser.getEmail());
                 if (existingUser != null) {
                     // User exists, log them in
-                    String token = jwtService.generateToken(existingUser.getEmail());
-                    // Set JWT token in HTTP-only cookie
-                    Cookie cookie = new Cookie("jwtToken", token);
-                    cookie.setHttpOnly(true);
-                    cookie.setSecure(true); // Use secure cookies in production
-                    cookie.setPath("/");
-                    cookie.setMaxAge(7 * 24 * 60 * 60); // Set cookie expiry to 7 days
-                    response.addCookie(cookie);
+                    String accessToken = jwtService.generateAccessToken(existingUser.getEmail());
+                    String refreshToken = jwtService.generateRefreshToken(existingUser.getEmail());
 
-                    Map<String, Object> responseBody = new HashMap<>();
+                    // Use TokenUtil to set tokens in cookies
+                    tokenUtil.setTokensInCookies(accessToken, refreshToken, response);
+
                     responseBody.put("success", true);
-                    Map<String, Object> userDetails = new HashMap<>();
-                    userDetails.put("email", existingUser.getEmail());
-                    userDetails.put("is_admin", existingUser.isAdmin());
-                    responseBody.put("user", userDetails);
+                    responseBody.put("user", Map.of("email", existingUser.getEmail(), "is_admin", existingUser.isAdmin()));
                     return ResponseEntity.ok(responseBody);
                 } else {
                     // User does not exist, register them
                     User newUser = userService.saveUser(googleUser);
-                    String token = jwtService.generateToken(newUser.getEmail());
+                    String accessToken = jwtService.generateAccessToken(newUser.getEmail());
+                    String refreshToken = jwtService.generateRefreshToken(newUser.getEmail());
 
-                    // Set JWT token in HTTP-only cookie
-                    Cookie cookie = new Cookie("jwtToken", token);
-                    cookie.setHttpOnly(true);
-                    cookie.setSecure(true); // Use secure cookies in production
-                    cookie.setPath("/");
-                    cookie.setMaxAge(7 * 24 * 60 * 60); // Set cookie expiry to 7 days
-                    response.addCookie(cookie);
-
-                    Map<String, Object> responseBody = new HashMap<>();
+                    // Use TokenUtil to set tokens in cookies
+                    tokenUtil.setTokensInCookies(accessToken, refreshToken, response);
                     responseBody.put("success", true);
-                    Map<String, Object> userDetails = new HashMap<>();
-                    userDetails.put("email", newUser.getEmail());
-                    userDetails.put("is_admin", newUser.isAdmin());
-                    responseBody.put("user", userDetails);
+                    responseBody.put("user", Map.of("email", newUser.getEmail(), "is_admin", newUser.isAdmin()));
                     return ResponseEntity.ok(responseBody);
                 }
             } else {
-                System.out.println("Google login failed");
-                Map<String, Object> responseBody = new HashMap<>();
                 responseBody.put("success", false);
                 responseBody.put("message", "Google login failed");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseBody);
             }
         } catch (Exception e) {
-            System.out.println("Error during Google login: " + e.getMessage());
-            Map<String, Object> responseBody = new HashMap<>();
             responseBody.put("success", false);
             responseBody.put("message", "An error occurred");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseBody);
         }
     }
 
-    @PostMapping("/logout")
+    @GetMapping("/auth/check")
+    public ResponseEntity<?> checkAuth(@CookieValue(value = "jwtToken", required = false) String token) {
+        if (token == null || !jwtService.isTokenValid(token)) {
+            return ResponseEntity.status(401).body(Map.of("authenticated", false));
+        }
+
+        String email = jwtService.extractUsername(token);
+        User user = userService.findByEmail(email);
+
+        return ResponseEntity.ok(Map.of(
+                "authenticated", true,
+                "user", Map.of("email", user.getEmail(), "is_admin", user.isAdmin())
+        ));
+    }
+
+    @PostMapping("/auth/refresh")
+    public ResponseEntity<?> refresh(@CookieValue(value = "refreshToken", required = false) String refreshToken,
+                                     HttpServletResponse response) {
+        if (refreshToken == null) {
+            return ResponseEntity.status(401).body("Missing refresh token");
+        }
+
+        String newAccessToken = jwtService.refreshAccessToken(refreshToken);
+        if (newAccessToken == null) {
+            return ResponseEntity.status(401).body("Invalid refresh token");
+        }
+
+        Cookie jwtCookie = new Cookie("jwtToken", newAccessToken);
+        jwtCookie.setHttpOnly(true);
+        jwtCookie.setSecure(true); // Set to true in production
+        jwtCookie.setPath("/");
+        jwtCookie.setMaxAge(15 * 60); // 15 minutes
+
+        response.addCookie(jwtCookie);
+
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    @PostMapping("/auth/logout")
     public ResponseEntity<?> logout(HttpServletResponse response) {
-        // Clear the JWT token cookie
-        Cookie cookie = new Cookie("jwtToken", null);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(true); // Use secure cookies in production
-        cookie.setPath("/");
-        cookie.setMaxAge(0); // Expire the cookie immediately
+        Cookie jwtCookie = new Cookie("jwtToken", null);
+        jwtCookie.setHttpOnly(true);
+        jwtCookie.setSecure(true);
+        jwtCookie.setPath("/");
+        jwtCookie.setMaxAge(0);
 
-        response.addCookie(cookie);
+        Cookie refreshCookie = new Cookie("refreshToken", null);
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setSecure(true);
+        refreshCookie.setPath("/");
+        refreshCookie.setMaxAge(0);
 
-        return ResponseEntity.ok("Logout successful");
+        response.addCookie(jwtCookie);
+        response.addCookie(refreshCookie);
+
+        System.out.println("Logged out sucessfully.");
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 
     @GetMapping("adduser")
