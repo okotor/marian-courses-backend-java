@@ -212,10 +212,16 @@ public class UserController {
 
     //User Details View, Edit, Delete
     //View
-    @GetMapping({"user/{uId}"})
-    public User viewUserDetails(@PathVariable("uId") Integer uId) {
-        return userService.getUser(uId);
+    @GetMapping("/user/{uId}")
+    public ResponseEntity<User> viewUserDetails(@PathVariable("uId") Integer uId) {
+        User user = userService.getUser(uId);
+        if (user != null) {
+            return ResponseEntity.ok(user);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
     }
+
     //Edit
     @PutMapping("user")
     public User updateUser(@RequestBody User user){
