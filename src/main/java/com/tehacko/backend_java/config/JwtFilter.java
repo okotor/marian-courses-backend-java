@@ -38,16 +38,8 @@ public class JwtFilter extends OncePerRequestFilter {
         // Log start
         System.out.println("[JwtFilter] Checking authentication for request: " + request.getRequestURI());
 
-
-        // 1. Check Authorization header
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-            System.out.println("[JwtFilter] Token found in Authorization header.");
-        }
-
-        // 2. If not found in header, check cookies
-        if (token == null && request.getCookies() != null) {
+        // 1. check cookies
+        if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
                 if ("jwtToken".equals(cookie.getName())) {
                     token = cookie.getValue();
@@ -57,7 +49,7 @@ public class JwtFilter extends OncePerRequestFilter {
             }
         }
 
-        // 3. Validate token and set authentication
+        // 2. Validate token and set authentication
         if (token != null) {
             try {
                 username = jwtService.extractUsername(token);
