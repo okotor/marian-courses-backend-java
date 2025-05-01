@@ -9,20 +9,18 @@ public class TokenUtil {
 
     // Method to generate access token and refresh token and set them in cookies
     public void setTokensInCookies(String accessToken, String refreshToken, HttpServletResponse response) {
-        // Set JWT access token in HTTP-only cookie
-        Cookie accessTokenCookie = new Cookie("jwtToken", accessToken);
-        accessTokenCookie.setHttpOnly(true);
-        accessTokenCookie.setSecure(true);  // Use secure cookies in production
-        accessTokenCookie.setPath("/");
-        accessTokenCookie.setMaxAge(15 * 60); // Set expiration for 15 minutes
-        response.addCookie(accessTokenCookie);
+        // Manually set the access token cookie with SameSite=None
+        String accessTokenCookie = String.format(
+                "jwtToken=%s; Path=/; HttpOnly; Secure; Max-Age=%d; SameSite=None",
+                accessToken, 15 * 60 // 15 minutes
+        );
+        response.addHeader("Set-Cookie", accessTokenCookie);
 
-        // Set refresh token in a separate HTTP-only cookie
-        Cookie refreshTokenCookie = new Cookie("refreshToken", refreshToken);
-        refreshTokenCookie.setHttpOnly(true);
-        refreshTokenCookie.setSecure(true);  // Use secure cookies in production
-        refreshTokenCookie.setPath("/");
-        refreshTokenCookie.setMaxAge(7 * 24 * 60 * 60); // Set expiration for 7 days
-        response.addCookie(refreshTokenCookie);
+        // Manually set the refresh token cookie with SameSite=None
+        String refreshTokenCookie = String.format(
+                "refreshToken=%s; Path=/; HttpOnly; Secure; Max-Age=%d; SameSite=None",
+                refreshToken, 7 * 24 * 60 * 60
+        );
+        response.addHeader("Set-Cookie", refreshTokenCookie);
     }
 }
