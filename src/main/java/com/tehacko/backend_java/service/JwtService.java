@@ -1,5 +1,7 @@
 package com.tehacko.backend_java.service;
 
+import com.tehacko.backend_java.model.User;
+import com.tehacko.backend_java.repo.UserRepo;
 import io.jsonwebtoken.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -21,27 +23,56 @@ public class JwtService {
     @Value("${jwt.refreshExpiration}")
     private long refreshExpiration;
 
+    private final UserRepo userRepo;
+
+    public JwtService(UserRepo userRepo) {
+        this.userRepo = userRepo;
+    }
+
     // === ACCESS TOKEN ===
     public String generateAccessToken(String username) {
         return createToken(new HashMap<>(), username, expiration);
     }
 
     // === REFRESH TOKEN ===
-    public String generateRefreshToken(String username) {
-        return createToken(new HashMap<>(), username, refreshExpiration);
+    public String generateRefreshToken(User user) {
+        String refreshToken = createToken(new HashMap<>(), user.getEmail(), refreshExpiration);
+        user.setRefreshToken(refreshToken);
+        userRepo.save(user); // Save refresh token to DB
+        return refreshToken;
     }
 
     public String refreshAccessToken(String refreshToken) {
         try {
-            Claims claims = getClaimsFromToken(refreshToken);
-            if (claims.getExpiration().before(new Date())) {
-                return null;
+            // Extract username from the refresh token
+            String username = extractUsername(refreshToken);
+
+            // Find the user by refresh token
+            User user = userRepo.findByRefreshToken(refreshToken);
+
+            // Validate the token and ensure it matches the stored token
+            if (user == null || !refreshToken.equals(user.getRefreshToken()) || isTokenExpired(refreshToken)) {
+                return null; // Invalid or expired token
             }
-            return generateAccessToken(claims.getSubject());
-        } catch (JwtException | IllegalArgumentException e) {
-            return null;
+
+            // Generate and return a new access token
+            return generateAccessToken(username);
+        } catch (Exception e) {
+            return null; // Handle invalid or expired token
         }
     }
+
+//    public String refreshAccessToken(String refreshToken) {
+//        try {
+//            Claims claims = getClaimsFromToken(refreshToken);
+//            if (claims.getExpiration().before(new Date())) {
+//                return null;
+//            }
+//            return generateAccessToken(claims.getSubject());
+//        } catch (JwtException | IllegalArgumentException e) {
+//            return null;
+//        }
+//    }
 
     public boolean isTokenValid(String token) {
         try {

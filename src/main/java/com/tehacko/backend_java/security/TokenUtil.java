@@ -23,4 +23,12 @@ public class TokenUtil {
         );
         response.addHeader("Set-Cookie", refreshTokenCookie);
     }
+
+    public void clearCookies(HttpServletResponse response) {
+        String clearAccessTokenCookie = "jwtToken=; Path=/; HttpOnly; Secure; Max-Age=0; SameSite=None";
+        String clearRefreshTokenCookie = "refreshToken=; Path=/; HttpOnly; Secure; Max-Age=0; SameSite=None";
+
+        response.addHeader("Set-Cookie", clearAccessTokenCookie);
+        response.addHeader("Set-Cookie", clearRefreshTokenCookie);
+    }
 }

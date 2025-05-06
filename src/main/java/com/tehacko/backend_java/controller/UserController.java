@@ -71,7 +71,7 @@ public class UserController {
 
             // Generate both tokens
             String accessToken = jwtService.generateAccessToken(authenticatedUser.getEmail());
-            String refreshToken = jwtService.generateRefreshToken(authenticatedUser.getEmail());
+            String refreshToken = jwtService.generateRefreshToken(authenticatedUser);
 
             // Use TokenUtil to set tokens in cookies
             tokenUtil.setTokensInCookies(accessToken, refreshToken, response);
@@ -100,7 +100,7 @@ public class UserController {
                 if (existingUser != null) {
                     // User exists, log them in
                     String accessToken = jwtService.generateAccessToken(existingUser.getEmail());
-                    String refreshToken = jwtService.generateRefreshToken(existingUser.getEmail());
+                    String refreshToken = jwtService.generateRefreshToken(existingUser);
 
                     // Use TokenUtil to set tokens in cookies
                     tokenUtil.setTokensInCookies(accessToken, refreshToken, response);
@@ -112,7 +112,7 @@ public class UserController {
                     // User does not exist, register them
                     User newUser = userService.saveUser(googleUser);
                     String accessToken = jwtService.generateAccessToken(newUser.getEmail());
-                    String refreshToken = jwtService.generateRefreshToken(newUser.getEmail());
+                    String refreshToken = jwtService.generateRefreshToken(newUser);
 
                     // Use TokenUtil to set tokens in cookies
                     tokenUtil.setTokensInCookies(accessToken, refreshToken, response);
@@ -154,40 +154,31 @@ public class UserController {
             return ResponseEntity.status(401).body("Missing refresh token");
         }
 
+        User user = userService.findByRefreshToken(refreshToken); // ✅ Use service layer
+        if (user == null) {
+            return ResponseEntity.status(401).body("Invalid refresh token");
+        }
+
         String newAccessToken = jwtService.refreshAccessToken(refreshToken);
         if (newAccessToken == null) {
             return ResponseEntity.status(401).body("Invalid refresh token");
         }
 
-        Cookie jwtCookie = new Cookie("jwtToken", newAccessToken);
-        jwtCookie.setHttpOnly(true);
-        jwtCookie.setSecure(true); // Set to true in production
-        jwtCookie.setPath("/");
-        jwtCookie.setMaxAge(15 * 60); // 15 minutes
-
-        response.addCookie(jwtCookie);
+        // Use TokenUtil to set the new access token in the cookie
+        tokenUtil.setTokensInCookies(newAccessToken, refreshToken, response);
 
         return ResponseEntity.ok(Map.of("success", true));
     }
 
     @PostMapping("/auth/logout")
-    public ResponseEntity<?> logout(HttpServletResponse response) {
-        Cookie jwtCookie = new Cookie("jwtToken", null);
-        jwtCookie.setHttpOnly(true);
-        jwtCookie.setSecure(true);
-        jwtCookie.setPath("/");
-        jwtCookie.setMaxAge(0);
+    public ResponseEntity<?> logout(@CookieValue(value = "refreshToken", required = false) String refreshToken,
+                                    HttpServletResponse response) {
+        if (refreshToken != null) {
+            userService.clearRefreshToken(refreshToken); // ✅ Use service
+        }
 
-        Cookie refreshCookie = new Cookie("refreshToken", null);
-        refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(true);
-        refreshCookie.setPath("/");
-        refreshCookie.setMaxAge(0);
-
-        response.addCookie(jwtCookie);
-        response.addCookie(refreshCookie);
-
-        System.out.println("Logged out sucessfully.");
+        tokenUtil.clearCookies(response);
+        System.out.println("Logged out successfully.");
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 

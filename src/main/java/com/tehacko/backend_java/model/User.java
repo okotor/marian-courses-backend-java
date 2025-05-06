@@ -24,6 +24,9 @@ public class User {
     @Column(name = "is_admin", nullable = false) // Ensures correct DB column name
     private boolean isAdmin;
 
+    @Column(name = "refresh_token")
+    private String refreshToken;
+
     public int getUId() {
         return uId;
     }
@@ -54,6 +57,14 @@ public class User {
 
     public void setAdmin(boolean admin) {
         isAdmin = admin;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
     }
 
 }

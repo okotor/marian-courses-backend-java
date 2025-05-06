@@ -39,6 +39,18 @@ public class UserService {
         }
     }
 
+    public User findByRefreshToken(String refreshToken) {
+        return userRepo.findByRefreshToken(refreshToken);
+    }
+
+    public void clearRefreshToken(String refreshToken) {
+        User user = userRepo.findByRefreshToken(refreshToken);
+        if (user != null) {
+            user.setRefreshToken(null);
+            userRepo.save(user);
+        }
+    }
+
     public User validateGoogleToken(String googleToken) throws GeneralSecurityException, IOException {
         return googleTokenValidatorService.validateGoogleToken(googleToken);
     }

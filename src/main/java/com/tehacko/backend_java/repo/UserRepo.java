@@ -11,7 +11,10 @@ import java.util.List;
 //@CrossOrigin(origins = "http://localhost:3000") // Allow React
 public interface UserRepo extends JpaRepository<User, Integer> {
     User findByEmail(String email);
+
     List<User> findByEmailContainingOrPassword(String email, String password);
+
+    User findByRefreshToken(String refreshToken);
 
 //    public List<User> getAllUsers(){
 //        return users;
