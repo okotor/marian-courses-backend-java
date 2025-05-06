@@ -1,5 +1,6 @@
 package com.tehacko.backend_java.controller;
 
+import com.tehacko.backend_java.exception.CustomException;
 import com.tehacko.backend_java.model.User;
 import com.tehacko.backend_java.security.TokenUtil;
 import com.tehacko.backend_java.service.JwtService;
@@ -50,8 +51,7 @@ public class UserController {
             User newUser = userService.saveUser(user);
             return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Během registrace nastala chyba. Zkuste to ještě jednou."));
+            throw new CustomException("Během registrace nastala chyba. Zkuste to ještě jednou."+ e.getMessage(), 400);
         }
     }
 
@@ -79,10 +79,8 @@ public class UserController {
             responseBody.put("success", true);
             responseBody.put("user", Map.of("email", authenticatedUser.getEmail(), "is_admin", authenticatedUser.isAdmin()));
             return ResponseEntity.ok(responseBody);
-
         } catch (Exception e) {
-            responseBody.put("error", "Login failed due to an internal error.");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseBody);
+            throw new CustomException("Login failed: " + e.getMessage(), 401);
         }
     }
 
