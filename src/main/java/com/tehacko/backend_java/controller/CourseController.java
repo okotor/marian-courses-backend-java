@@ -57,7 +57,12 @@ public class CourseController {
             @RequestParam("lecturerEmail") String lecturerEmail,
             @RequestParam("image") MultipartFile image) {
 
-        logger.info("Saving course with title: {}", title);
+        logger.info("Received parameters: title={}, summary={}, courseDescription={}, lecturer={}, lecturerEmail={}",
+                title, summary, courseDescription, lecturer, lecturerEmail);
+        logger.info("Image file name: {}", image.getOriginalFilename());
+        logger.info("Image content type: {}", image.getContentType());
+        logger.info("Image size: {} bytes", image.getSize());
+
         Course course = courseService.saveCourse(title, summary, courseDescription, lecturer, lecturerEmail, image);
         return ResponseEntity.ok(course);
     }

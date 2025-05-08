@@ -53,8 +53,8 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
         config.setAllowedOrigins(List.of("http://localhost:3000", "https://maria-courses-next-js-java-backend.vercel.app")); // Must use setAllowedOrigins not addAllowedOrigin repeatedly
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowedMethods(List.of("*"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         source.registerCorsConfiguration("/**", config);
         return source;
     }
