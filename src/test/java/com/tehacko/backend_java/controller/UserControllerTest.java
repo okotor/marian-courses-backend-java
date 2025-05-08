@@ -1,4 +1,4 @@
-package com.tehacko.backend_java.controllerTests;
+package com.tehacko.backend_java.controller;
 
 import com.tehacko.backend_java.service.UserService;
 import org.junit.jupiter.api.Test;

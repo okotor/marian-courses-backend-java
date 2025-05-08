@@ -1,22 +1,16 @@
 package com.tehacko.backend_java.controller;
 
-import com.tehacko.backend_java.exception.CustomException;
 import com.tehacko.backend_java.model.User;
-import com.tehacko.backend_java.security.TokenUtil;
-import com.tehacko.backend_java.service.JwtService;
 import com.tehacko.backend_java.service.UserService;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Map;
 
@@ -24,172 +18,50 @@ import java.util.Map;
 //@CrossOrigin(origins = {"http://localhost:3000", "https://marian-courses-next-js-frontend.vercel.app"}) // Allow React
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
 
-    @Autowired
-    private JwtService jwtService;
-
-    @Autowired
-    AuthenticationManager authenticationManager;
-
-    @Autowired
-    private TokenUtil tokenUtil;
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
 
     @GetMapping({"/", "home"})
     public String home() {
         return "home";
     }
 
-    @PostMapping("register")
-    public ResponseEntity<?> register(@RequestBody User user){
-        try {
-            if (userService.emailExists(user.getEmail())) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of("error", "Email již existuje. Zkuste se přihlásit."));
-            }
-            User newUser = userService.saveUser(user);
-            return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
-        } catch (Exception e) {
-            throw new CustomException("Během registrace nastala chyba. Zkuste to ještě jednou."+ e.getMessage(), 400);
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@Valid @RequestBody User user){
+        User newUser = userService.userRegister(user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
         }
-    }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User user, HttpServletResponse response) {
-        Map<String, Object> responseBody = new HashMap<>();
-        try {
-            Authentication authentication = authenticationManager
-                    .authenticate(new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword()));
-
-            if (!authentication.isAuthenticated()) {
-                responseBody.put("error", "Invalid credentials");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseBody);
-            }
-
-            User authenticatedUser = userService.findByEmail(user.getEmail());
-
-            // Generate both tokens
-            String accessToken = jwtService.generateAccessToken(authenticatedUser.getEmail());
-            String refreshToken = jwtService.generateRefreshToken(authenticatedUser);
-
-            // Use TokenUtil to set tokens in cookies
-            tokenUtil.setTokensInCookies(accessToken, refreshToken, response);
-
-            responseBody.put("success", true);
-            responseBody.put("user", Map.of("email", authenticatedUser.getEmail(), "is_admin", authenticatedUser.isAdmin()));
-            return ResponseEntity.ok(responseBody);
-        } catch (Exception e) {
-            throw new CustomException("Login failed: " + e.getMessage(), 401);
-        }
+        Map<String, Object> loginResponse = userService.userLogin(user, response);
+        return ResponseEntity.ok(loginResponse);
     }
 
     @PostMapping("/google-login")
-    public ResponseEntity<Map<String, Object>> googleLogin(@RequestBody Map<String, String> request, HttpServletResponse response) {
-        System.out.println("Received POST /google-login request");
-        Map<String, Object> responseBody = new HashMap<>();
-        String googleToken = request.get("token");
-        try {
-            User googleUser = userService.validateGoogleToken(googleToken);
-            if (googleUser != null) {
-                // Check if the user already exists in the database
-                System.out.println("Google user validated: " + googleUser.getEmail());
-                User existingUser = userService.findByEmail(googleUser.getEmail());
-                if (existingUser != null) {
-                    // User exists, log them in
-                    String accessToken = jwtService.generateAccessToken(existingUser.getEmail());
-                    String refreshToken = jwtService.generateRefreshToken(existingUser);
-
-                    // Use TokenUtil to set tokens in cookies
-                    tokenUtil.setTokensInCookies(accessToken, refreshToken, response);
-
-                    responseBody.put("success", true);
-                    responseBody.put("user", Map.of("email", existingUser.getEmail(), "is_admin", existingUser.isAdmin()));
-                    return ResponseEntity.ok(responseBody);
-                } else {
-                    // User does not exist, register them
-                    User newUser = userService.saveUser(googleUser);
-                    String accessToken = jwtService.generateAccessToken(newUser.getEmail());
-                    String refreshToken = jwtService.generateRefreshToken(newUser);
-
-                    // Use TokenUtil to set tokens in cookies
-                    tokenUtil.setTokensInCookies(accessToken, refreshToken, response);
-                    responseBody.put("success", true);
-                    responseBody.put("user", Map.of("email", newUser.getEmail(), "is_admin", newUser.isAdmin()));
-                    return ResponseEntity.ok(responseBody);
-                }
-            } else {
-                responseBody.put("success", false);
-                responseBody.put("message", "Google login failed");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseBody);
-            }
-        } catch (Exception e) {
-            responseBody.put("success", false);
-            responseBody.put("message", "An error occurred");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseBody);
-        }
+    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> request, HttpServletResponse response) throws GeneralSecurityException, IOException {
+        Map<String, Object> googleLoginResponse = userService.userGoogleLogin(request.get("token"), response);
+        return ResponseEntity.ok(googleLoginResponse);
     }
 
     @GetMapping("/auth/check")
     public ResponseEntity<?> checkAuth(@CookieValue(value = "jwtToken", required = false) String token) {
-        if (token == null || !jwtService.isTokenValid(token)) {
-            return ResponseEntity.status(401).body(Map.of("authenticated", false));
-        }
-
-        String email = jwtService.extractUsername(token);
-        User user = userService.findByEmail(email);
-
-        return ResponseEntity.ok(Map.of(
-                "authenticated", true,
-                "user", Map.of("email", user.getEmail(), "is_admin", user.isAdmin())
-        ));
+        return ResponseEntity.ok(userService.userCheckAuth(token));
     }
 
     @PostMapping("/auth/refresh")
     public ResponseEntity<?> refresh(@CookieValue(value = "refreshToken", required = false) String refreshToken,
                                      HttpServletResponse response) {
-        if (refreshToken == null) {
-            return ResponseEntity.status(401).body("Missing refresh token");
-        }
-
-        User user = userService.findByRefreshToken(refreshToken); // ✅ Use service layer
-        if (user == null) {
-            return ResponseEntity.status(401).body("Invalid refresh token");
-        }
-
-        String newAccessToken = jwtService.refreshAccessToken(refreshToken);
-        if (newAccessToken == null) {
-            return ResponseEntity.status(401).body("Invalid refresh token");
-        }
-
-        // Use TokenUtil to set the new access token in the cookie
-        tokenUtil.setTokensInCookies(newAccessToken, refreshToken, response);
-
-        return ResponseEntity.ok(Map.of("success", true));
+        return ResponseEntity.ok(userService.userRefreshToken(refreshToken, response));
     }
 
     @PostMapping("/auth/logout")
     public ResponseEntity<?> logout(@CookieValue(value = "refreshToken", required = false) String refreshToken,
                                     HttpServletResponse response) {
-        if (refreshToken != null) {
-            userService.clearRefreshToken(refreshToken); // ✅ Use service
-        }
-
-        tokenUtil.clearCookies(response);
-        System.out.println("Logged out successfully.");
-        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
-    }
-
-    @GetMapping("adduser")
-    public String addUser(){
-        return "adduser";
-    }
-
-    @PostMapping("handleForm")
-    public String handleForm(User user){
-        userService.addUser(user);
-        return "success";
-
+        return ResponseEntity.ok(userService.userLogout(refreshToken, response));
     }
 
     @GetMapping("viewallusers")
@@ -203,7 +75,7 @@ public class UserController {
     //View
     @GetMapping("/user/{uId}")
     public ResponseEntity<User> viewUserDetails(@PathVariable("uId") Integer uId) {
-        User user = userService.getUser(uId);
+        User user = userService.userFindById(uId);
         if (user != null) {
             return ResponseEntity.ok(user);
         } else {
@@ -214,8 +86,8 @@ public class UserController {
     //Edit
     @PutMapping("user")
     public User updateUser(@RequestBody User user){
-        userService.updateUser(user);
-        return userService.getUser(user.getUId());
+        userService.userUpdate(user);
+        return userService.userFindById(user.getUId());
     }
     //Delete
     @DeleteMapping("user/{uId}")

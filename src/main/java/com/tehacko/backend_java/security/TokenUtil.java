@@ -19,7 +19,7 @@ public class TokenUtil {
         // Manually set the refresh token cookie with SameSite=None
         String refreshTokenCookie = String.format(
                 "refreshToken=%s; Path=/; HttpOnly; Secure; Max-Age=%d; SameSite=None",
-                refreshToken, 7 * 24 * 60 * 60
+                refreshToken, 7 * 24 * 60 * 60 // 7 days
         );
         response.addHeader("Set-Cookie", refreshTokenCookie);
     }

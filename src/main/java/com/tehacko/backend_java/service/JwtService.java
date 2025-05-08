@@ -88,6 +88,8 @@ public class JwtService {
     }
 
     private String createToken(Map<String, Object> claims, String subject, long tokenValidity) {
+        User user = userRepo.findByEmail(subject); // Fetch the user by email (subject)
+        claims.put("roles", user.isAdmin() ? "ADMIN" : "USER");
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(subject)
@@ -97,16 +99,16 @@ public class JwtService {
                 .compact();
     }
 
-    public Boolean validateToken(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
-    }
+//    public Boolean validateToken(String token, UserDetails userDetails) {
+//        final String username = extractUsername(token);
+//        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+//    }
 
     public boolean isTokenExpired(String token) {
         return getClaimsFromToken(token).getExpiration().before(new Date());
     }
 
-    private Claims getClaimsFromToken(String token) {
+    public Claims getClaimsFromToken(String token) {
         return Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody();
     }
 }
