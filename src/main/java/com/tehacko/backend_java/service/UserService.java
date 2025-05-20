@@ -85,6 +85,26 @@ public class UserService {
         userRepo.save(user);
     }
 
+    public void resendConfirmationEmail(String email) {
+        User user = findByEmail(email);
+
+        if (user == null) {
+            throw new CustomException("Uživatel nebyl nalezen.", HttpStatus.NOT_FOUND.value());
+        }
+
+        if (user.isEnabled()) {
+            throw new CustomException("Uživatel je již ověřen.", HttpStatus.BAD_REQUEST.value());
+        }
+
+        String token = jwtService.generateAccessToken(user.getEmail());
+        user.setVerificationToken(token);
+        userRepo.save(user);
+
+        String verifyUrl = emailService.getFrontendBaseUrl() + "/confirm-email?token=" + token;
+        emailService.sendEmail(user.getEmail(), "Znovu odesláno potvrzení",
+                "Klikněte na tento odkaz pro potvrzení: " + verifyUrl);
+    }
+
     public Map<String, Object> userLogin(User user, HttpServletResponse response) {
         if (user.getEmail() == null || user.getPassword() == null) {
             throw new CustomException("Email a heslo musí být vyplněny.", HttpStatus.BAD_REQUEST.value());
@@ -236,6 +256,7 @@ public class UserService {
     public List<User> search(String keyword) {
         return userRepo.findByEmailContainingOrPassword(keyword, keyword);
     }
+
 
 //    public void load() {
 //        // ArrayList to store User objects

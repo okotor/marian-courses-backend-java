@@ -50,6 +50,12 @@ public class UserController {
         return ResponseEntity.ok("Email byl úspěšně ověřen.");
     }
 
+    @PostMapping("/resend-confirmation")
+    public ResponseEntity<?> resendConfirmation(@RequestBody Map<String, String> payload) {
+        userService.resendConfirmationEmail(payload.get("email"));
+        return ResponseEntity.ok(Map.of("message", "Potvrzovací email byl odeslán."));
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User user, HttpServletResponse response) {
         Map<String, Object> loginResponse = userService.userLogin(user, response);
