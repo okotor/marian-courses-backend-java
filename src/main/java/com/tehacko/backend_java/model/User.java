@@ -27,6 +27,12 @@ public class User {
     @Column(name = "refresh_token")
     private String refreshToken;
 
+    @Column(name = "verification_token")
+    private String verificationToken;
+
+    @Column(name = "enabled", nullable = false)
+    private Boolean enabled = false;
+
     public int getUId() {
         return uId;
     }
@@ -67,6 +73,21 @@ public class User {
         this.refreshToken = refreshToken;
     }
 
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public String getVerificationToken() {
+        return verificationToken;
+    }
+
+    public void setVerificationToken(String verificationToken) {
+        this.verificationToken = verificationToken;
+    }
 }
 
 

@@ -38,7 +38,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())  // Disable CSRF
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow preflight requests
-                        .requestMatchers("/register", "/login", "/google-login", "/courses/**", "/auth/refresh", "/auth/check", "/auth/logout").permitAll()
+                        .requestMatchers("/register", "/confirm-email", "/login", "/google-login", "/courses/**", "/auth/refresh", "/auth/check", "/auth/logout").permitAll()
                         .anyRequest().authenticated())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Explicitly enable CORS
                 .sessionManagement(session ->

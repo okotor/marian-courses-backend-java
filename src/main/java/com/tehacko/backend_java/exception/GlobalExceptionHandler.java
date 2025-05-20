@@ -24,7 +24,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleGeneralException(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "error", true,
-                "message", "Stala se nečekaná chyba: " + ex.getMessage(),
+                "message", "Chyba: " + ex.getMessage(),
                 "timestamp", LocalDateTime.now()
         ));
     }

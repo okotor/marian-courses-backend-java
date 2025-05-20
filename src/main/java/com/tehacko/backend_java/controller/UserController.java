@@ -1,9 +1,13 @@
 package com.tehacko.backend_java.controller;
 
 import com.tehacko.backend_java.model.User;
+
 import com.tehacko.backend_java.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+//SENDING TEST EMAILS
+//import org.springframework.beans.factory.annotation.Autowired;
+//import com.tehacko.backend_java.service.EmailService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.ui.Model;
@@ -24,6 +28,10 @@ public class UserController {
         this.userService = userService;
     }
 
+    //SENDING TEST EMAILS
+//    @Autowired
+//    private EmailService emailService;
+
     @GetMapping({"/", "home"})
     public String home() {
         return "home";
@@ -33,7 +41,14 @@ public class UserController {
     public ResponseEntity<?> register(@Valid @RequestBody User user){
         User newUser = userService.userRegister(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
-        }
+    }
+
+    @PostMapping("/confirm-email")
+    public ResponseEntity<String> confirmEmail(@RequestBody Map<String, String> payload) {
+        String token = payload.get("token");
+        userService.confirmEmail(token);
+        return ResponseEntity.ok("Email byl úspěšně ověřen.");
+    }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User user, HttpServletResponse response) {
@@ -89,18 +104,32 @@ public class UserController {
         userService.userUpdate(user);
         return userService.userFindById(user.getUId());
     }
+
     //Delete
     @DeleteMapping("user/{uId}")
     public String deleteUser(@PathVariable int uId) {
         userService.deleteUser(uId);
         return "Uživatelský účet by smazán.";
     }
+
     //Search by Keyword
     @GetMapping("users/keyword/{keyword}")
     public List<User> searchByKeyword(@PathVariable("keyword") String keyword){
         return userService.search(keyword);
     }
 
+    //SENDING TEST EMAILS
+//    @GetMapping("/test-email")
+//    public ResponseEntity<String> testEmail() {
+//        emailService.sendEmail(
+//                "cornelius.lundi@gmail.com", // Replace with your address
+//                "Test Email from Marian Courses App",
+//                "This is a test email to confirm that Gmail SMTP is working correctly."
+//        );
+//        return ResponseEntity.ok("Test email sent.");
+//    }
+
+    //LOADING DUMMY DATA
 //    @GetMapping("load")
 //    public String loadData(){
 //        userService.load();

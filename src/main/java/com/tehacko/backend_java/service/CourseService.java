@@ -75,6 +75,62 @@ public class CourseService {
         return courseRepo.save(course);
     }
 
+    public void deleteBySlug(String slug) {
+        Course course = courseRepo.findBySlug(slug);
+        if (course == null) {
+            throw new CustomException("Course with slug '" + slug + "' not found", 404);
+        }
+
+        // Delete image from S3 if exists
+        if (course.getImage() != null && !course.getImage().isEmpty()) {
+            deleteImageFromS3(course.getImage());
+        }
+
+        courseRepo.delete(course);
+    }
+
+    public Course updateCourse(String slug, String title, String summary, String courseDescription,
+                               String lecturer, String lecturerEmail, MultipartFile imageFile) {
+        Course existingCourse = courseRepo.findBySlug(slug);
+        if (existingCourse == null) {
+            throw new CustomException("Course with slug '" + slug + "' not found", 404);
+        }
+
+        validateInputs(title, summary, imageFile);
+
+        existingCourse.setTitle(title);
+        existingCourse.setSummary(summary);
+        existingCourse.setCourseDescription(sanitizeDescription(courseDescription));
+        existingCourse.setLecturer(lecturer);
+        existingCourse.setLecturerEmail(lecturerEmail);
+
+        // Update slug if title changed (optional)
+        if (!existingCourse.getTitle().equals(title)) {
+            String newSlug = generateSlug(title);
+            existingCourse.setSlug(newSlug);
+        }
+
+        if (imageFile != null && !imageFile.isEmpty()) {
+            // Delete old image from S3 if present
+            if (existingCourse.getImage() != null && !existingCourse.getImage().isEmpty()) {
+                deleteImageFromS3(existingCourse.getImage());
+            }
+            String imageName = uploadImageToS3(imageFile, existingCourse.getSlug());
+            existingCourse.setImage(imageName);
+        }
+
+        return courseRepo.save(existingCourse);
+    }
+
+    private void deleteImageFromS3(String imageName) {
+        String s3Key = "public/" + imageName;
+        if (s3Client.doesObjectExist(bucketName, s3Key)) {
+            s3Client.deleteObject(bucketName, s3Key);
+            System.out.println("Deleted image from S3: " + s3Key);
+        }
+    }
+
+
     private void validateInputs(String title, String summary, MultipartFile imageFile) {
         if (title == null || title.isEmpty()) {
             throw new CustomException("Course title is required.", 400);

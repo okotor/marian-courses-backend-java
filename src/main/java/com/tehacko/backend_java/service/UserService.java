@@ -29,6 +29,9 @@ public class UserService {
     @Autowired
     private GoogleTokenValidatorService googleTokenValidatorService;
 
+    @Autowired
+    private EmailService emailService;
+
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(12);
 
     public UserService(UserRepo userRepo, JwtService jwtService,
@@ -45,10 +48,41 @@ public class UserService {
         }
         try {
             user.setPassword(encoder.encode(user.getPassword()));
-            return userRepo.save(user);
+            user.setEnabled(false);
+            User savedUser = userRepo.save(user);
+
+            // Generate verification token
+            String token = jwtService.generateAccessToken(savedUser.getEmail());
+            savedUser.setVerificationToken(token);
+            userRepo.save(savedUser);
+
+            // Send confirmation email
+            String verifyUrl = emailService.getFrontendBaseUrl() + "/confirm-email?token=" + token;
+            emailService.sendEmail(savedUser.getEmail(), "Potvrďte registraci",
+                    "Klikněte na tento odkaz pro potvrzení: " + verifyUrl);
+
+
+            return savedUser;
         } catch (Exception e) {
             throw new CustomException("Nepodařilo se uživatele zaregistrovat: " + e.getMessage(), 500);
         }
+    }
+
+    public void confirmEmail(String token) {
+        String email = jwtService.extractUsername(token);
+        User user = findByEmail(email);
+
+        if (user == null) {
+            throw new CustomException("Uživatel nebyl nalezen.", HttpStatus.NOT_FOUND.value());
+        }
+
+        if (!token.equals(user.getVerificationToken())) {
+            throw new CustomException("Neplatný ověřovací token.", HttpStatus.BAD_REQUEST.value());
+        }
+
+        user.setEnabled(true);
+        user.setVerificationToken(null);
+        userRepo.save(user);
     }
 
     public Map<String, Object> userLogin(User user, HttpServletResponse response) {
@@ -67,6 +101,10 @@ public class UserService {
         User authenticatedUser = findByEmail(user.getEmail());
         if (authenticatedUser == null) {
             throw new CustomException("Uživatel nebyl nalezen.", HttpStatus.NOT_FOUND.value());
+        }
+
+        if (!authenticatedUser.isEnabled()) {
+            throw new CustomException("Účet není ověřen. Zkontrolujte svůj e-mail pro potvrzení registrace.", HttpStatus.UNAUTHORIZED.value());
         }
 
         String accessToken = jwtService.generateAccessToken(authenticatedUser.getEmail());

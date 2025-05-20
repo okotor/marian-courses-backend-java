@@ -67,6 +67,32 @@ public class CourseController {
         return ResponseEntity.ok(course);
     }
 
+    @PostMapping("/update/{slug}")
+    public ResponseEntity<Course> updateCourse(
+            @PathVariable String slug,
+            @RequestParam("title") String title,
+            @RequestParam("summary") String summary,
+            @RequestParam("courseDescription") String courseDescription,
+            @RequestParam("lecturer") String lecturer,
+            @RequestParam("lecturerEmail") String lecturerEmail,
+            @RequestParam(value = "image", required = false) MultipartFile image) {
+
+        logger.info("Received parameters: title={}, summary={}, courseDescription={}, lecturer={}, lecturerEmail={}",
+                title, summary, courseDescription, lecturer, lecturerEmail);
+        logger.info("Image file name: {}", image.getOriginalFilename());
+        logger.info("Image content type: {}", image.getContentType());
+        logger.info("Image size: {} bytes", image.getSize());
+
+        Course updatedCourse = courseService.updateCourse(slug, title, summary, courseDescription, lecturer, lecturerEmail, image);
+        return ResponseEntity.ok(updatedCourse);
+    }
+
+    @DeleteMapping("/{slug}")
+    public ResponseEntity<Void> deleteCourseBySlug(@PathVariable String slug) {
+        courseService.deleteBySlug(slug);
+        return ResponseEntity.noContent().build();
+    }
+
     //Search by Keyword
     @GetMapping("/keyword/{keyword}")
     public ResponseEntity<List<Course>> searchByKeyword(@PathVariable("keyword") String keyword) {
