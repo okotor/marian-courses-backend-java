@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -32,6 +34,12 @@ public class User {
 
     @Column(name = "enabled", nullable = false)
     private Boolean enabled = false;
+
+    @Column(name = "reset_token")
+    private String resetToken;
+
+    @Column(name = "reset_token_created_at")
+    private LocalDateTime resetTokenCreatedAt;
 
     public int getUId() {
         return uId;
@@ -87,6 +95,22 @@ public class User {
 
     public void setVerificationToken(String verificationToken) {
         this.verificationToken = verificationToken;
+    }
+
+    public String getResetToken() {
+        return resetToken;
+    }
+
+    public void setResetToken(String resetToken) {
+        this.resetToken = resetToken;
+    }
+
+    public LocalDateTime getResetTokenCreatedAt() {
+        return resetTokenCreatedAt;
+    }
+
+    public void setResetTokenCreatedAt(LocalDateTime resetTokenCreatedAt) {
+        this.resetTokenCreatedAt = resetTokenCreatedAt;
     }
 }
 

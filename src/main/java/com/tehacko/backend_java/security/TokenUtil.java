@@ -1,8 +1,12 @@
 package com.tehacko.backend_java.security;
 
+import com.tehacko.backend_java.model.User;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
+
+import java.security.SecureRandom;
+import java.util.Base64;
 
 @Component
 public class TokenUtil {
@@ -31,4 +35,11 @@ public class TokenUtil {
         response.addHeader("Set-Cookie", clearAccessTokenCookie);
         response.addHeader("Set-Cookie", clearRefreshTokenCookie);
     }
+
+    public String generateTokenForPasswordReset(User user) {
+        byte[] randomBytes = new byte[32];
+        new SecureRandom().nextBytes(randomBytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+    }
+
 }

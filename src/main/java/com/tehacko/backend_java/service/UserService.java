@@ -7,6 +7,7 @@ import com.tehacko.backend_java.security.TokenUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -15,8 +16,10 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class UserService {
@@ -93,7 +96,7 @@ public class UserService {
         }
 
         if (user.isEnabled()) {
-            throw new CustomException("Uživatel je již ověřen.", HttpStatus.BAD_REQUEST.value());
+            throw new CustomException("Uživatel je již ověřen. Zkuste se přihlásit", HttpStatus.BAD_REQUEST.value());
         }
 
         String token = jwtService.generateAccessToken(user.getEmail());
@@ -137,10 +140,77 @@ public class UserService {
         );
     }
 
+    public ResponseEntity<?> initiatePasswordReset(Map<String, String> request) {
+        String email = request.get("email");
+
+        if (email == null || email.trim().isEmpty()) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(Map.of("message", "Email je povinný."));
+        }
+        Optional<User> optionalUser = Optional.ofNullable(userRepo.findByEmail(email.trim()));
+        if (optionalUser.isEmpty()) {
+            // Optionally, always return 200 to prevent email enumeration
+            return ResponseEntity
+                    .ok()
+                    .body(Map.of("message", "Pokyny pro obnovení hesla byly odeslány na váš email."));
+        }
+        User user = optionalUser.get();
+        String token = tokenUtil.generateTokenForPasswordReset(user);
+        // Save token, optionally with expiration
+        user.setResetToken(token);
+        user.setResetTokenCreatedAt(LocalDateTime.now());
+        userRepo.save(user);
+        // Construct reset link
+        String resetLink = emailService.getFrontendBaseUrl() + "/reset-password?token=" + token;
+        // Send email
+        String subject = "Obnovení hesla";
+        String body = String.format(
+                "Ahoj %s,\n\nPro obnovení hesla klikněte na následující odkaz:\n%s\n\nPokud jste žádost neposlali, ignorujte tento e-mail.",
+                user.getEmail(), resetLink
+        );
+        try {
+            emailService.sendEmail(user.getEmail(), subject, body);
+            return ResponseEntity.ok(Map.of("message", "Pokyny pro obnovení hesla byly odeslány na váš email."));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Nepodařilo se odeslat e-mail s pokyny."));
+        }
+    }
+
+    public ResponseEntity<?> resetPasswordWithToken(Map<String, String> request) {
+        String token = request.get("token");
+        String newPassword = request.get("password");
+
+        if (token == null || token.isBlank() || newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Zadejte prosím nové heslo."));
+        }
+
+        Optional<User> optionalUser = userRepo.findByResetToken(token);
+        if (optionalUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Odkaz není platný. Požádejte prosím znovu o obnovení hesla."));
+        }
+
+        User user = optionalUser.get();
+
+        // Optionally validate token age (e.g., 1 hour expiration)
+        if (user.getResetTokenCreatedAt() == null || user.getResetTokenCreatedAt().isBefore(LocalDateTime.now().minusHours(1))) {
+            return ResponseEntity.status(HttpStatus.GONE).body(Map.of("message", "Platnost odkazu vypršela. Požádejte prosím znovu o obnovení hesla."));
+        }
+
+        user.setPassword(encoder.encode(newPassword));
+        user.setResetToken(null);
+        user.setResetTokenCreatedAt(null);
+        userRepo.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Heslo bylo úspěšně změněno."));
+    }
+
+
     public Map<String, Object> userGoogleLogin(String googleToken, HttpServletResponse response) throws GeneralSecurityException, IOException {
         User googleUser = validateGoogleToken(googleToken);
         if (googleUser == null) {
-            throw new CustomException("Neplatný Google token.", HttpStatus.UNAUTHORIZED.value());
+            throw new CustomException("Neplatné přihlášení s Google. Zkuste to prosím znovu.", HttpStatus.UNAUTHORIZED.value());
         }
 
         User existingUser = findByEmail(googleUser.getEmail());
@@ -160,7 +230,7 @@ public class UserService {
 
     public Map<String, Object> userCheckAuth(String token) {
         if (token == null || !jwtService.isTokenValid(token)) {
-            throw new CustomException("Token není platný.", HttpStatus.UNAUTHORIZED.value());
+            throw new CustomException("Uživatel odhlášen.", HttpStatus.UNAUTHORIZED.value());
         }
 
         String email = jwtService.extractUsername(token);
@@ -174,12 +244,12 @@ public class UserService {
 
     public Map<String, Object> userRefreshToken(String refreshToken, HttpServletResponse response) {
         if (refreshToken == null) {
-            throw new CustomException("Chybí refresh token.", HttpStatus.UNAUTHORIZED.value());
+            throw new CustomException("Váš email není potvrzen, požádejte prosím a opětovné potvrzení na odkazu níže.", HttpStatus.UNAUTHORIZED.value());
         }
 
         User user = findByRefreshToken(refreshToken);
         if (user == null) {
-            throw new CustomException("Neplatný refresh token.", HttpStatus.UNAUTHORIZED.value());
+            throw new CustomException("Uživatele nelze přihlásit.", HttpStatus.UNAUTHORIZED.value());
         }
 
         String newAccessToken = jwtService.refreshAccessToken(refreshToken);
@@ -256,6 +326,7 @@ public class UserService {
     public List<User> search(String keyword) {
         return userRepo.findByEmailContainingOrPassword(keyword, keyword);
     }
+
 
 
 //    public void load() {

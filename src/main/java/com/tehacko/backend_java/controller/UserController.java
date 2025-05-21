@@ -53,13 +53,23 @@ public class UserController {
     @PostMapping("/resend-confirmation")
     public ResponseEntity<?> resendConfirmation(@RequestBody Map<String, String> payload) {
         userService.resendConfirmationEmail(payload.get("email"));
-        return ResponseEntity.ok(Map.of("message", "Potvrzovací email byl odeslán."));
+        return ResponseEntity.ok(Map.of("message", "Potvrzovací email byl znovu odeslán."));
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User user, HttpServletResponse response) {
         Map<String, Object> loginResponse = userService.userLogin(user, response);
         return ResponseEntity.ok(loginResponse);
+    }
+
+    @PostMapping("/forgotten-password")
+    public ResponseEntity<?> handleForgottenPassword(@RequestBody Map<String, String> request) {
+        return userService.initiatePasswordReset(request);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+        return userService.resetPasswordWithToken(request);
     }
 
     @PostMapping("/google-login")
@@ -91,6 +101,7 @@ public class UserController {
         m.addAttribute("users", users);
         return "viewallusers";
     }
+
 
     //User Details View, Edit, Delete
     //View
