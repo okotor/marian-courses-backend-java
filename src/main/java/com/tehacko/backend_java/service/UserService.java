@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -113,11 +114,11 @@ public class UserService {
             throw new CustomException("Email a heslo musí být vyplněny.", HttpStatus.BAD_REQUEST.value());
         }
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword())
-        );
-
-        if (!authentication.isAuthenticated()) {
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword())
+            );
+        } catch (BadCredentialsException ex) {
             throw new CustomException("Neplatné přihlašovací údaje.", HttpStatus.UNAUTHORIZED.value());
         }
 
@@ -152,8 +153,8 @@ public class UserService {
         if (optionalUser.isEmpty()) {
             // Optionally, always return 200 to prevent email enumeration
             return ResponseEntity
-                    .ok()
-                    .body(Map.of("message", "Pokyny pro obnovení hesla byly odeslány na váš email."));
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "Tento uživatel zatím neexistuje. Zaregistrujte se prosím."));
         }
         User user = optionalUser.get();
         String token = tokenUtil.generateTokenForPasswordReset(user);
@@ -244,12 +245,16 @@ public class UserService {
 
     public Map<String, Object> userRefreshToken(String refreshToken, HttpServletResponse response) {
         if (refreshToken == null) {
-            throw new CustomException("Váš email není potvrzen, požádejte prosím a opětovné potvrzení na odkazu níže.", HttpStatus.UNAUTHORIZED.value());
+            throw new CustomException("Chybí refresh token.", HttpStatus.UNAUTHORIZED.value());
         }
 
         User user = findByRefreshToken(refreshToken);
         if (user == null) {
-            throw new CustomException("Uživatele nelze přihlásit.", HttpStatus.UNAUTHORIZED.value());
+            throw new CustomException("Neplatný nebo expirovaný token. Přihlaste se znovu.", HttpStatus.UNAUTHORIZED.value());
+        }
+
+        if (!user.isEnabled()) {
+            throw new CustomException("Účet není ověřen. Prosím ověřte svůj e-mail.", HttpStatus.UNAUTHORIZED.value());
         }
 
         String newAccessToken = jwtService.refreshAccessToken(refreshToken);
