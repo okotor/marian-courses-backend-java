@@ -4,6 +4,7 @@ import com.tehacko.backend_java.exception.CustomException;
 import com.tehacko.backend_java.model.User;
 import com.tehacko.backend_java.repo.UserRepo;
 import com.tehacko.backend_java.security.TokenUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -229,6 +231,43 @@ public class UserService {
         );
     }
 
+    public ResponseEntity<?> changeUserPassword(Map<String, String> payload, HttpServletRequest request) {
+        String oldPassword = payload.get("oldPassword");
+        String newPassword = payload.get("newPassword");
+
+        if (oldPassword == null || newPassword == null) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(Map.of("error", "Původní nebo nové heslo chybí."));
+        }
+
+        String userEmail = (String) request.getAttribute("userEmail");
+        if (userEmail == null) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Uživatel není autentizován."));
+        }
+
+        Optional<User> optionalUser = Optional.ofNullable(userRepo.findByEmail(userEmail));
+        if (optionalUser.isEmpty()) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Uživatel nebyl nalezen."));
+        }
+
+        User user = optionalUser.get();
+        if (!encoder.matches(oldPassword, user.getPassword())) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(Map.of("error", "Původní heslo není správné."));
+        }
+
+        user.setPassword(encoder.encode(newPassword));
+        userRepo.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Heslo bylo úspěšně změněno."));
+    }
+
     public Map<String, Object> userCheckAuth(String token) {
         if (token == null || !jwtService.isTokenValid(token)) {
             throw new CustomException("Uživatel odhlášen.", HttpStatus.UNAUTHORIZED.value());
@@ -305,23 +344,25 @@ public class UserService {
                         HttpStatus.NOT_FOUND.value()));
     }
 
-    public void userUpdate(User user) {
-        userRepo.save(user);
-    }
+    public ResponseEntity<?> deleteAccount(HttpServletRequest request) {
+        String userEmail = (String) request.getAttribute("userEmail");
 
-    //ALTERNATIVELY:
-//    public User updateUser(UserRequest userRequest) {
-//        User user = userRepo.findByEmail(userRequest.getEmail());
-//        if (user != null) {
-//            user.setPassword(encoder.encode(userRequest.getPassword()));
-//            return userRepo.save(user);
-//        } else {
-//            return null;
-//        }
-//    }
+        if (userEmail == null) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Uživatel není autentizován."));
+        }
 
-    public void deleteUser(int uId) {
-        userRepo.deleteById(uId);
+        Optional<User> optionalUser = Optional.ofNullable(userRepo.findByEmail(userEmail));
+        if (optionalUser.isEmpty()) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Uživatel nebyl nalezen."));
+        }
+
+        userRepo.delete(optionalUser.get());
+
+        return ResponseEntity.ok(Map.of("message", "Účet byl úspěšně smazán."));
     }
 
     public boolean emailExists(String email) {

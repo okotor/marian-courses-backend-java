@@ -63,6 +63,8 @@ public class JwtFilter extends OncePerRequestFilter {
                                         Collections.singleton(new SimpleGrantedAuthority(roles)));
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);
+                        // Controllers can now access the user's email
+                        request.setAttribute("userEmail", username);
                         System.out.println("[JwtFilter] Authentication successful for user: " + username);
                     } else {
                         System.out.println("[JwtFilter] Token validation failed.");

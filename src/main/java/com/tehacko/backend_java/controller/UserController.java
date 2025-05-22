@@ -3,6 +3,7 @@ package com.tehacko.backend_java.controller;
 import com.tehacko.backend_java.model.User;
 
 import com.tehacko.backend_java.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 //SENDING TEST EMAILS
@@ -78,6 +79,11 @@ public class UserController {
         return ResponseEntity.ok(googleLoginResponse);
     }
 
+    @PutMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> payload, HttpServletRequest request) {
+        return userService.changeUserPassword(payload, request);
+    }
+
     @GetMapping("/auth/check")
     public ResponseEntity<?> checkAuth(@CookieValue(value = "jwtToken", required = false) String token) {
         return ResponseEntity.ok(userService.userCheckAuth(token));
@@ -115,18 +121,11 @@ public class UserController {
         }
     }
 
-    //Edit
-    @PutMapping("user")
-    public User updateUser(@RequestBody User user){
-        userService.userUpdate(user);
-        return userService.userFindById(user.getUId());
-    }
-
     //Delete
-    @DeleteMapping("user/{uId}")
-    public String deleteUser(@PathVariable int uId) {
-        userService.deleteUser(uId);
-        return "Uživatelský účet by smazán.";
+    @DeleteMapping("/delete-account")
+    public ResponseEntity<?> deleteAccount(HttpServletRequest request) {
+        System.out.println("✅ /delete-account was hit");
+        return userService.deleteAccount(request);
     }
 
     //Search by Keyword
