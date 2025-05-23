@@ -59,9 +59,6 @@ public class CourseController {
 
         logger.info("Received parameters: title={}, summary={}, courseDescription={}, lecturer={}, lecturerEmail={}",
                 title, summary, courseDescription, lecturer, lecturerEmail);
-        logger.info("Image file name: {}", image.getOriginalFilename());
-        logger.info("Image content type: {}", image.getContentType());
-        logger.info("Image size: {} bytes", image.getSize());
 
         Course course = courseService.saveCourse(title, summary, courseDescription, lecturer, lecturerEmail, image);
         return ResponseEntity.ok(course);
@@ -79,9 +76,11 @@ public class CourseController {
 
         logger.info("Received parameters: title={}, summary={}, courseDescription={}, lecturer={}, lecturerEmail={}",
                 title, summary, courseDescription, lecturer, lecturerEmail);
-        logger.info("Image file name: {}", image.getOriginalFilename());
-        logger.info("Image content type: {}", image.getContentType());
-        logger.info("Image size: {} bytes", image.getSize());
+        if (image != null) {
+            System.out.println("Image filename: " + image.getOriginalFilename());
+        } else {
+            System.out.println("No image uploaded.");
+        }
 
         Course updatedCourse = courseService.updateCourse(slug, title, summary, courseDescription, lecturer, lecturerEmail, image);
         return ResponseEntity.ok(updatedCourse);

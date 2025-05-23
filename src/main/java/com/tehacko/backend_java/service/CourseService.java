@@ -91,10 +91,21 @@ public class CourseService {
 
     public Course updateCourse(String slug, String title, String summary, String courseDescription,
                                String lecturer, String lecturerEmail, MultipartFile imageFile) {
+
+        System.out.println("🔍 Starting updateCourse");
+        System.out.println("Slug: " + slug);
+        System.out.println("Title: " + title);
+        System.out.println("Summary: " + summary);
+        System.out.println("Lecturer: " + lecturer);
+        System.out.println("LecturerEmail: " + lecturerEmail);
+        System.out.println("ImageFile: " + (imageFile != null ? imageFile.getOriginalFilename() : "null"));
+
         Course existingCourse = courseRepo.findBySlug(slug);
         if (existingCourse == null) {
             throw new CustomException("Course with slug '" + slug + "' not found", 404);
         }
+
+        System.out.println("✅ Course found");
 
         validateInputs(title, summary, imageFile);
 
@@ -108,15 +119,18 @@ public class CourseService {
         if (!existingCourse.getTitle().equals(title)) {
             String newSlug = generateSlug(title);
             existingCourse.setSlug(newSlug);
+            System.out.println("🔁 Title changed, new slug: " + newSlug);
         }
 
         if (imageFile != null && !imageFile.isEmpty()) {
+            System.out.println("📷 Updating image...");
             // Delete old image from S3 if present
             if (existingCourse.getImage() != null && !existingCourse.getImage().isEmpty()) {
                 deleteImageFromS3(existingCourse.getImage());
             }
             String imageName = uploadImageToS3(imageFile, existingCourse.getSlug());
             existingCourse.setImage(imageName);
+            System.out.println("✅ Image updated: " + imageName);
         }
 
         return courseRepo.save(existingCourse);
@@ -138,14 +152,13 @@ public class CourseService {
         if (summary == null || summary.isEmpty()) {
             throw new CustomException("Course summary is required.", 400);
         }
-        if (imageFile == null || imageFile.isEmpty()) {
-            throw new CustomException("Image is required.", 400);
-        }
-        if (!imageFile.getContentType().startsWith("image/")) {
-            throw new CustomException("Invalid file type. Only images are allowed.", 400);
-        }
-        if (imageFile.getSize() > 5 * 1024 * 1024) { // 5 MB limit
-            throw new CustomException("File size exceeds the limit of 5MB.", 400);
+        if (imageFile != null) {
+            if (!imageFile.getContentType().startsWith("image/")) {
+                throw new CustomException("Invalid file type. Only images are allowed.", 400);
+            }
+            if (imageFile.getSize() > 5 * 1024 * 1024) {
+                throw new CustomException("File size exceeds the limit of 5MB.", 400);
+            }
         }
     }
 
