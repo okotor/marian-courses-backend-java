@@ -55,12 +55,13 @@ public class CourseController {
             @RequestParam("courseDescription") String courseDescription,
             @RequestParam("lecturer") String lecturer,
             @RequestParam("lecturerEmail") String lecturerEmail,
-            @RequestParam("image") MultipartFile image) {
+            @RequestParam("image") MultipartFile image,
+            @RequestParam(value = "video", required = false) MultipartFile video) {
 
         logger.info("Received parameters: title={}, summary={}, courseDescription={}, lecturer={}, lecturerEmail={}",
                 title, summary, courseDescription, lecturer, lecturerEmail);
 
-        Course course = courseService.saveCourse(title, summary, courseDescription, lecturer, lecturerEmail, image);
+        Course course = courseService.saveCourse(title, summary, courseDescription, lecturer, lecturerEmail, image, video);
         return ResponseEntity.ok(course);
     }
 
@@ -72,7 +73,8 @@ public class CourseController {
             @RequestParam("courseDescription") String courseDescription,
             @RequestParam("lecturer") String lecturer,
             @RequestParam("lecturerEmail") String lecturerEmail,
-            @RequestParam(value = "image", required = false) MultipartFile image) {
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "video", required = false) MultipartFile video) {
 
         logger.info("Received parameters: title={}, summary={}, courseDescription={}, lecturer={}, lecturerEmail={}",
                 title, summary, courseDescription, lecturer, lecturerEmail);
@@ -82,7 +84,7 @@ public class CourseController {
             System.out.println("No image uploaded.");
         }
 
-        Course updatedCourse = courseService.updateCourse(slug, title, summary, courseDescription, lecturer, lecturerEmail, image);
+        Course updatedCourse = courseService.updateCourse(slug, title, summary, courseDescription, lecturer, lecturerEmail, image, video);
         return ResponseEntity.ok(updatedCourse);
     }
 

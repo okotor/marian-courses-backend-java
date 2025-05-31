@@ -55,7 +55,7 @@ public class CourseService {
     }
 
     public Course saveCourse(String title, String summary, String courseDescription, String lecturer,
-                             String lecturerEmail, MultipartFile imageFile) {
+                             String lecturerEmail, MultipartFile imageFile, MultipartFile videoFile) {
         validateInputs(title, summary, imageFile);
 
         Course course = new Course();
@@ -72,6 +72,11 @@ public class CourseService {
         String imageName = uploadImageToS3(imageFile, slug);
         course.setImage(imageName);
 
+        if (videoFile != null && !videoFile.isEmpty()) {
+            String videoName = uploadVideoToS3(videoFile, slug);
+            course.setVideo(videoName); // You’ll need to add this field in the `Course` model and DB
+        }
+
         return courseRepo.save(course);
     }
 
@@ -81,16 +86,16 @@ public class CourseService {
             throw new CustomException("Course with slug '" + slug + "' not found", 404);
         }
 
-        // Delete image from S3 if exists
+        // Delete image and video from S3 if exists
         if (course.getImage() != null && !course.getImage().isEmpty()) {
             deleteImageFromS3(course.getImage());
         }
-
+        deleteVideoFromS3(slug);
         courseRepo.delete(course);
     }
 
     public Course updateCourse(String slug, String title, String summary, String courseDescription,
-                               String lecturer, String lecturerEmail, MultipartFile imageFile) {
+                               String lecturer, String lecturerEmail, MultipartFile imageFile, MultipartFile videoFile) {
 
         System.out.println("🔍 Starting updateCourse");
         System.out.println("Slug: " + slug);
@@ -133,6 +138,12 @@ public class CourseService {
             System.out.println("✅ Image updated: " + imageName);
         }
 
+        if (videoFile != null && !videoFile.isEmpty()) {
+            deleteVideoFromS3(slug); // Always replace old video if new is provided
+            uploadVideoToS3(videoFile, slug);
+            System.out.println("✅ Video updated: " + slug + "-video.mp4");
+        }
+
         return courseRepo.save(existingCourse);
     }
 
@@ -141,6 +152,14 @@ public class CourseService {
         if (s3Client.doesObjectExist(bucketName, s3Key)) {
             s3Client.deleteObject(bucketName, s3Key);
             System.out.println("Deleted image from S3: " + s3Key);
+        }
+    }
+
+    private void deleteVideoFromS3(String slug) {
+        String key = "public/videos/" + slug + "-video.mp4";
+        if (s3Client.doesObjectExist(bucketName, key)) {
+            s3Client.deleteObject(bucketName, key);
+            System.out.println("Deleted video from S3: " + key);
         }
     }
 
@@ -192,4 +211,22 @@ public class CourseService {
             throw new CustomException("Failed to upload image to S3: " + e.getMessage(), 500);
         }
     }
+
+    private String uploadVideoToS3(MultipartFile videoFile, String slug) {
+        try {
+            String extension = videoFile.getOriginalFilename().substring(videoFile.getOriginalFilename().lastIndexOf("."));
+            String fileName = slug + "-video" + extension;
+            String s3Key = "public/videos/" + fileName;
+
+            ObjectMetadata metadata = new ObjectMetadata();
+            metadata.setContentType(videoFile.getContentType());
+            metadata.setContentLength(videoFile.getSize());
+
+            s3Client.putObject(bucketName, s3Key, videoFile.getInputStream(), metadata);
+            return fileName;
+        } catch (IOException e) {
+            throw new CustomException("Failed to upload video to S3: " + e.getMessage(), 500);
+        }
+    }
+
 }

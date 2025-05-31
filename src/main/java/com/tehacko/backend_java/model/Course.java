@@ -22,6 +22,7 @@ public class Course {
     private String slug;
     private String title;
     private String image;
+    private String video;
     private String summary;
     @Column(columnDefinition = "TEXT")
     private String courseDescription;
@@ -68,6 +69,14 @@ public class Course {
         this.image = image;
     }
 
+    public String getVideo() {
+        return video;
+    }
+
+    public void setVideo(String video) {
+        this.video = video;
+    }
+
     public String getSummary() {
         return summary;
     }
@@ -108,6 +117,7 @@ public class Course {
                 ", slug='" + slug + '\'' +
                 ", title='" + title + '\'' +
                 ", image='" + image + '\'' +
+                ", video='" + video + '\'' +
                 ", summary='" + summary + '\'' +
                 ", courseDescription='" + courseDescription + '\'' +
                 ", lecturer='" + lecturer + '\'' +
