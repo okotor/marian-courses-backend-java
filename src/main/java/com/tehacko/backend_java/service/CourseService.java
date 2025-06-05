@@ -116,7 +116,7 @@ public class CourseService {
 
         existingCourse.setTitle(title);
         existingCourse.setSummary(summary);
-        existingCourse.setCourseDescription(sanitizeDescription(courseDescription));
+        existingCourse.setCourseDescription(courseDescription);
         existingCourse.setLecturer(lecturer);
         existingCourse.setLecturerEmail(lecturerEmail);
 
