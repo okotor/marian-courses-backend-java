@@ -39,9 +39,6 @@ public class TokenUtil {
         } else {
             response.addHeader("Set-Cookie", CLEAR_REFRESH_COOKIE);
         }
-
-        logger.info("Set jwtToken cookie: {}", accessToken);
-        logger.info("Set refreshToken cookie: {}", refreshToken);
     }
 
     public void clearCookies(HttpServletResponse response) {
