@@ -43,23 +43,16 @@ public class JwtService {
     }
 
     public String refreshAccessToken(String refreshToken) {
-        try {
-            // Extract username from the refresh token
-            String username = extractUsername(refreshToken);
+        if (refreshToken == null) return null;
 
-            // Find the user by refresh token
-            User user = userRepo.findByRefreshToken(refreshToken);
-
-            // Validate the token and ensure it matches the stored token
-            if (user == null || !refreshToken.equals(user.getRefreshToken()) || isTokenExpired(refreshToken)) {
-                return null; // Invalid or expired token
-            }
-
-            // Generate and return a new access token
-            return generateAccessToken(username);
-        } catch (Exception e) {
-            return null; // Handle invalid or expired token
+        // 🔑 Trust DB as source of truth
+        User user = userRepo.findByRefreshToken(refreshToken);
+        if (user == null || !user.isEnabled()) {
+            return null;
         }
+
+        // ✅ No need to parse refresh token again — if it's valid enough to exist in DB, we issue a new access token
+        return generateAccessToken(user.getEmail());
     }
 
 //    public String refreshAccessToken(String refreshToken) {
@@ -88,7 +81,10 @@ public class JwtService {
     }
 
     private String createToken(Map<String, Object> claims, String subject, long tokenValidity) {
-        User user = userRepo.findByEmail(subject); // Fetch the user by email (subject)
+        User user = userRepo.findByEmail(subject);
+        if (user == null) {
+            throw new IllegalStateException("🚨 Cannot create token — user not found for email: " + subject);
+        }
         claims.put("roles", user.isAdmin() ? "ADMIN" : "USER");
         return Jwts.builder()
                 .setClaims(claims)

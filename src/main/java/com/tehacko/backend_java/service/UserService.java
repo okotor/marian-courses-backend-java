@@ -111,7 +111,7 @@ public class UserService {
                 "Klikněte na tento odkaz pro potvrzení: " + verifyUrl);
     }
 
-    public Map<String, Object> userLogin(User user, HttpServletResponse response) {
+    public Map<String, Object> userLogin(User user, HttpServletResponse response, boolean allowPersistent) {
         if (user.getEmail() == null || user.getPassword() == null) {
             throw new CustomException("Email a heslo musí být vyplněny.", HttpStatus.BAD_REQUEST.value());
         }
@@ -135,7 +135,7 @@ public class UserService {
 
         String accessToken = jwtService.generateAccessToken(authenticatedUser.getEmail());
         String refreshToken = jwtService.generateRefreshToken(authenticatedUser);
-        tokenUtil.setTokensInCookies(accessToken, refreshToken, response);
+        tokenUtil.setTokensInCookies(accessToken, refreshToken, response, allowPersistent);
 
         return Map.of(
                 "success", true,
@@ -210,7 +210,7 @@ public class UserService {
     }
 
 
-    public Map<String, Object> userGoogleLogin(String googleToken, HttpServletResponse response) throws GeneralSecurityException, IOException {
+    public Map<String, Object> userGoogleLogin(String googleToken, HttpServletResponse response, boolean allowPersistent) throws GeneralSecurityException, IOException {
         User googleUser = validateGoogleToken(googleToken);
         if (googleUser == null) {
             throw new CustomException("Neplatné přihlášení s Google. Zkuste to prosím znovu.", HttpStatus.UNAUTHORIZED.value());
@@ -218,12 +218,17 @@ public class UserService {
 
         User existingUser = findByEmail(googleUser.getEmail());
         if (existingUser == null) {
+            googleUser.setEnabled(true);  // ✅ Trust Google-verified email
             existingUser = userRepo.save(googleUser);
+        } else if (!existingUser.isEnabled()) {
+            // ✅ Handle edge case: existing user in DB but not enabled (from Google)
+            existingUser.setEnabled(true);
+            userRepo.save(existingUser);
         }
 
         String accessToken = jwtService.generateAccessToken(existingUser.getEmail());
         String refreshToken = jwtService.generateRefreshToken(existingUser);
-        tokenUtil.setTokensInCookies(accessToken, refreshToken, response);
+        tokenUtil.setTokensInCookies(accessToken, refreshToken, response, allowPersistent);
 
         return Map.of(
                 "success", true,
@@ -282,22 +287,24 @@ public class UserService {
         );
     }
 
-    public Map<String, Object> userRefreshToken(String refreshToken, HttpServletResponse response) {
+    public Map<String, Object> userRefreshToken(String refreshToken, HttpServletResponse response, boolean allowPersistent) {
         if (refreshToken == null) {
+            tokenUtil.clearCookies(response);
             throw new CustomException("Chybí refresh token.", HttpStatus.UNAUTHORIZED.value());
         }
 
         User user = findByRefreshToken(refreshToken);
-        if (user == null) {
+        if (user == null || !user.isEnabled()) {
+            tokenUtil.clearCookies(response);
             throw new CustomException("Neplatný nebo expirovaný token. Přihlaste se znovu.", HttpStatus.UNAUTHORIZED.value());
         }
 
-        if (!user.isEnabled()) {
-            throw new CustomException("Účet není ověřen. Prosím ověřte svůj e-mail.", HttpStatus.UNAUTHORIZED.value());
-        }
-
         String newAccessToken = jwtService.refreshAccessToken(refreshToken);
-        tokenUtil.setTokensInCookies(newAccessToken, refreshToken, response);
+        if (newAccessToken == null) {
+            tokenUtil.clearCookies(response);
+            throw new CustomException("Neplatný nebo expirovaný token. Přihlaste se znovu.", HttpStatus.UNAUTHORIZED.value());
+        }
+        tokenUtil.setTokensInCookies(newAccessToken, refreshToken, response, allowPersistent);
 
         return Map.of("success", true);
     }

@@ -39,7 +39,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow preflight requests
                         .requestMatchers("/register", "/confirm-email", "/resend-confirmation",
-                                "/forgotten-password", "reset-password", "/login", "/google-login",
+                                "/forgotten-password", "/reset-password", "/login", "/google-login",
                                 "/courses/**", "/auth/refresh",
                                 "/auth/check", "/auth/logout").permitAll()
                         .anyRequest().authenticated())

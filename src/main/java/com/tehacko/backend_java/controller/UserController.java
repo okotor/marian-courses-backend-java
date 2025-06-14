@@ -3,6 +3,7 @@ package com.tehacko.backend_java.controller;
 import com.tehacko.backend_java.model.User;
 
 import com.tehacko.backend_java.service.UserService;
+import com.tehacko.backend_java.util.RequestUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -46,6 +47,7 @@ public class UserController {
 
     @PostMapping("/confirm-email")
     public ResponseEntity<String> confirmEmail(@RequestBody Map<String, String> payload) {
+
         String token = payload.get("token");
         userService.confirmEmail(token);
         return ResponseEntity.ok("Email byl úspěšně ověřen.");
@@ -58,8 +60,12 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody User user, HttpServletResponse response) {
-        Map<String, Object> loginResponse = userService.userLogin(user, response);
+    public ResponseEntity<?> login(@RequestBody Map<String, Object> requestBody, HttpServletResponse response) {
+        User user = new User();
+        user.setEmail((String) requestBody.get("email"));
+        user.setPassword((String) requestBody.get("password"));
+        boolean allowPersistent = RequestUtil.extractAllowPersistent(requestBody);
+        Map<String, Object> loginResponse = userService.userLogin(user, response, allowPersistent);
         return ResponseEntity.ok(loginResponse);
     }
 
@@ -74,8 +80,10 @@ public class UserController {
     }
 
     @PostMapping("/google-login")
-    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> request, HttpServletResponse response) throws GeneralSecurityException, IOException {
-        Map<String, Object> googleLoginResponse = userService.userGoogleLogin(request.get("token"), response);
+    public ResponseEntity<?> googleLogin(@RequestBody Map<String, Object> request, HttpServletResponse response) throws GeneralSecurityException, IOException {
+        String googleToken = (String) request.get("token");
+        boolean allowPersistent = RequestUtil.extractAllowPersistent(request);
+        Map<String, Object> googleLoginResponse = userService.userGoogleLogin(googleToken, response, allowPersistent);
         return ResponseEntity.ok(googleLoginResponse);
     }
 
@@ -91,8 +99,10 @@ public class UserController {
 
     @PostMapping("/auth/refresh")
     public ResponseEntity<?> refresh(@CookieValue(value = "refreshToken", required = false) String refreshToken,
+                                     @RequestBody(required = false) Map<String, Object> requestBody,
                                      HttpServletResponse response) {
-        return ResponseEntity.ok(userService.userRefreshToken(refreshToken, response));
+        boolean allowPersistent = RequestUtil.extractAllowPersistent(requestBody);
+        return ResponseEntity.ok(userService.userRefreshToken(refreshToken, response, allowPersistent));
     }
 
     @PostMapping("/auth/logout")

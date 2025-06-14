@@ -1,8 +1,10 @@
 package com.tehacko.backend_java.security;
 
 import com.tehacko.backend_java.model.User;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.SecureRandom;
@@ -11,29 +13,40 @@ import java.util.Base64;
 @Component
 public class TokenUtil {
 
-    // Method to generate access token and refresh token and set them in cookies
-    public void setTokensInCookies(String accessToken, String refreshToken, HttpServletResponse response) {
-        // Manually set the access token cookie with SameSite=None
-        String accessTokenCookie = String.format(
-                "jwtToken=%s; Path=/; HttpOnly; Secure; Max-Age=%d; SameSite=None",
-                accessToken, 15 * 60 // 15 minutes
-        );
-        response.addHeader("Set-Cookie", accessTokenCookie);
+    private static final Logger logger = LoggerFactory.getLogger(TokenUtil.class);
 
-        // Manually set the refresh token cookie with SameSite=None
-        String refreshTokenCookie = String.format(
-                "refreshToken=%s; Path=/; HttpOnly; Secure; Max-Age=%d; SameSite=None",
-                refreshToken, 7 * 24 * 60 * 60 // 7 days
-        );
-        response.addHeader("Set-Cookie", refreshTokenCookie);
+    @Value("${jwt.cookieExpirationSeconds}")
+    private long cookieExpirationSeconds;
+
+    @Value("${jwt.refreshCookieExpirationSeconds}")
+    private long refreshCookieExpirationSeconds;
+
+    private static final String CLEAR_ACCESS_COOKIE = "jwtToken=; Path=/; HttpOnly; Secure; Max-Age=0; SameSite=None";
+    private static final String CLEAR_REFRESH_COOKIE = "refreshToken=; Path=/; HttpOnly; Secure; Max-Age=0; SameSite=None";
+
+    public void setTokensInCookies(String accessToken, String refreshToken, HttpServletResponse response, boolean allowPersistent) {
+        if (accessToken != null && !"null".equals(accessToken)) {
+            String accessTokenCookie = buildCookie("jwtToken", accessToken, true, true, allowPersistent, cookieExpirationSeconds);
+            response.addHeader("Set-Cookie", accessTokenCookie);
+        } else {
+            logger.warn("⚠ Attempted to set null or invalid accessToken cookie");
+            response.addHeader("Set-Cookie", CLEAR_ACCESS_COOKIE);
+        }
+
+        if (refreshToken != null) {
+            String refreshTokenCookie = buildCookie("refreshToken", refreshToken, true, true, allowPersistent, refreshCookieExpirationSeconds);
+            response.addHeader("Set-Cookie", refreshTokenCookie);
+        } else {
+            response.addHeader("Set-Cookie", CLEAR_REFRESH_COOKIE);
+        }
+
+        logger.info("Set jwtToken cookie: {}", accessToken);
+        logger.info("Set refreshToken cookie: {}", refreshToken);
     }
 
     public void clearCookies(HttpServletResponse response) {
-        String clearAccessTokenCookie = "jwtToken=; Path=/; HttpOnly; Secure; Max-Age=0; SameSite=None";
-        String clearRefreshTokenCookie = "refreshToken=; Path=/; HttpOnly; Secure; Max-Age=0; SameSite=None";
-
-        response.addHeader("Set-Cookie", clearAccessTokenCookie);
-        response.addHeader("Set-Cookie", clearRefreshTokenCookie);
+        response.addHeader("Set-Cookie", CLEAR_ACCESS_COOKIE);
+        response.addHeader("Set-Cookie", CLEAR_REFRESH_COOKIE);
     }
 
     public String generateTokenForPasswordReset(User user) {
@@ -42,4 +55,11 @@ public class TokenUtil {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
     }
 
+    private String buildCookie(String name, String value, boolean httpOnly, boolean secure, boolean persistent, long maxAge) {
+        String cookie = String.format("%s=%s; Path=/; SameSite=None", name, value);
+        if (httpOnly) cookie += "; HttpOnly";
+        if (secure) cookie += "; Secure";
+        if (persistent) cookie += "; Max-Age=" + maxAge;
+        return cookie;
+    }
 }
