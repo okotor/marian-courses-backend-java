@@ -15,6 +15,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleCustomException(CustomException ex) {
         return ResponseEntity.status(ex.getStatusCode()).body(Map.of(
                 "error", true,
+                "success", false, // add, do not replace
                 "message", ex.getMessage(),
                 "timestamp", LocalDateTime.now()
         ));
@@ -24,6 +25,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleGeneralException(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "error", true,
+                "success", false, // add, do not replace
                 "message", "Chyba: " + ex.getMessage(),
                 "timestamp", LocalDateTime.now()
         ));
